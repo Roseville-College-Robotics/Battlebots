@@ -6,6 +6,8 @@ from pybricks.parameters import Port, Stop, Direction, Button, Color
 from pybricks.tools import wait, StopWatch, DataLog
 from pybricks.robotics import DriveBase
 from pybricks.media.ev3dev import SoundFile, ImageFile
+import math
+import time
 
 
 class Bagel_bot(EV3Brick):
@@ -89,9 +91,41 @@ class Bagel_bot(EV3Brick):
         return None
 
     def color(self):
-        if hasattr(self, 'color_sensor'):
-            return self.color_sensor.color()
+        # Return one of the Color constants (Color.RED, Color.BLUE, Color.GREEN, Color.BROWN)
+        if not hasattr(self, 'color_sensor'):
+            return None
+
+        current = self.color_sensor.rgb()
+        try:
+            r, g, b = current
+        except Exception:
+            return None
+
+        # Prototype RGB values for target colors (tuned from observations)
+        prototypes = {
+            Color.RED:   (44, 12, 18),
+            Color.BLUE:  (5, 8, 23),
+            Color.GREEN: (10, 19, 8),
+            Color.BROWN: (11, 9,  10),
+        }
+
+        def dist2(a, b):
+            return (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2
+
+        best = None
+        best_d = None
+        for col, proto in prototypes.items():
+            d = dist2((r, g, b), proto)
+            if best is None or d < best_d:
+                best = col
+                best_d = d
+
+        # Accept only if within a reasonable squared-distance threshold.
+        # Threshold 600 corresponds to RMS error ~24 per channel (adjust if needed).
+        if best_d is not None and best_d <= 600:
+            return best
         return None
+
 
     def angle(self):
         if hasattr(self, 'gyro_sensor'):

@@ -6,6 +6,8 @@ from pybricks.parameters import Port, Stop, Direction, Button, Color
 from pybricks.tools import wait, StopWatch, DataLog
 from pybricks.robotics import DriveBase
 from pybricks.media.ev3dev import SoundFile, ImageFile
+import math
+import time
 
 
 class Bagel_bot(EV3Brick):
@@ -89,9 +91,41 @@ class Bagel_bot(EV3Brick):
         return None
 
     def color(self):
-        if hasattr(self, 'color_sensor'):
-            return self.color_sensor.color()
+        # Return one of the Color constants (Color.RED, Color.BLUE, Color.GREEN, Color.BROWN)
+        if not hasattr(self, 'color_sensor'):
+            return None
+
+        current = self.color_sensor.rgb()
+        try:
+            r, g, b = current
+        except Exception:
+            return None
+
+        # Prototype RGB values for target colors (tuned from observations)
+        prototypes = {
+            Color.RED:   (44, 12, 18),
+            Color.BLUE:  (5, 8, 23),
+            Color.GREEN: (10, 19, 8),
+            Color.BROWN: (11, 9,  10),
+        }
+
+        def dist2(a, b):
+            return (a[0]-b[0])**2 + (a[1]-b[1])**2 + (a[2]-b[2])**2
+
+        best = None
+        best_d = None
+        for col, proto in prototypes.items():
+            d = dist2((r, g, b), proto)
+            if best is None or d < best_d:
+                best = col
+                best_d = d
+
+        # Accept only if within a reasonable squared-distance threshold.
+        # Threshold 600 corresponds to RMS error ~24 per channel (adjust if needed).
+        if best_d is not None and best_d <= 600:
+            return best
         return None
+
 
     def angle(self):
         if hasattr(self, 'gyro_sensor'):
@@ -101,6 +135,7 @@ class Bagel_bot(EV3Brick):
     def beep(self):
         self.speaker.beep()
 
+
 ### Your code goes here ###
 
 # Initialise the robot with motors and sensors
@@ -108,13 +143,29 @@ robot = Bagel_bot(
     left_motor_port=Port.B,
     right_motor_port=Port.C,
     attachment_motor_port_1=Port.A,
-    ultrasonic_sensor_port=Port.S4
+    ultrasonic_sensor_port=Port.S1,
+    touch_sensor_port=Port.S4,
+    color_sensor_port=Port.S3
+    
     )
 
-while True: # Loop forever
-    if robot.distance()<10: # If the ultrasonic sensor detects an object within 10 cm
-        robot.move(-200) # Move backward 200 mm
-        wait(1000) # Wait for 1 second
-        robot.turn(180) # Turn around
-    robot.move(5) # Move forward 500 mm
-    robot.move_attachment(motor_port=Port.A, speed=500, angle=90) # Move attachment motor
+# while True: # Loop forever
+#     if robot.distance()<100: # If the ultrasonic sensor detects an object within 100 mm
+#         robot.move(-200) # Move backward 200 mm
+#         wait(1000) # Wait for 1 second
+#         robot.turn(180) # Turn around
+#     robot.move(500) # Move forward 500 mm
+#     robot.move_attachment(motor_port=Port.A, speed=500, angle=90) # Move attachment motor
+
+robot.beep()
+while True:
+    if robot.color() == Color.RED:
+        robot.speaker.say("Red color detected")
+    elif robot.color() == Color.BLUE:
+        robot.speaker.say("Blue color detected")
+    elif robot.color() == Color.GREEN:
+        robot.speaker.say("Green color detected")
+    elif robot.color() == Color.BROWN:
+        robot.speaker.say("Brown color detected")
+    else:
+        robot.beep()
